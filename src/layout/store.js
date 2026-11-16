@@ -7,6 +7,7 @@ import { groupOrderGrid, orderedGroups } from './order.js';
 import { settleGroupColors, swapGroupColor, validColor } from './colors.js';
 import { validOpacity } from './opacity.js';
 import { paperDimensions, validPaperSize } from './paper-size.js';
+import { minimumPaperSize, sameRectangle } from './resize.js';
 import { schemas } from '../core/schema.js';
 import { t } from '../i18n/index.js';
 import { isFront, layoutHighWater, maxOrder, orderRange, paperGeometry, restorePaper, visualOrder } from './stacking.js';
@@ -332,6 +333,24 @@ export class LayoutStore {
       if (rect.x === position.x && rect.y === position.y && !raised) return;
       draft.history.push({ kind: 'move', at: stamp(), before: { [cardId]: before }, afterZ: { [cardId]: rect.zOrder ?? null } });
       Object.assign(rect, { x: position.x, y: position.y });
+    });
+  }
+
+  /** A deliberate paper resize uses the existing full-geometry move/Undo format, independent of content saves. */
+  async resize(cardId, rectangle, expectedRectangle) {
+    rectangle = copy(rectangle); expectedRectangle = copy(expectedRectangle);
+    requireValue(validRect(rectangle) && ['x', 'y', 'width', 'height'].every(key => Math.abs(rectangle[key]) <= 1_000_000)
+      && rectangle.width >= minimumPaperSize.width && rectangle.height >= minimumPaperSize.height,
+    'invalid-size', t('errors.core.paperSizeInvalid'));
+    return this.#transaction(async draft => {
+      const rect = draft.placements[cardId];
+      requireValue(rect, 'missing-placement', t('errors.core.placementMissing'));
+      requireValue(sameRectangle(rect, expectedRectangle), 'stale-layout', t('errors.common.layoutChanged'));
+      if (sameRectangle(rect, rectangle)) return;
+      const before = geometry(rect);
+      await this.#raise(draft, [cardId]);
+      draft.history.push({ kind: 'move', at: stamp(), before: { [cardId]: before }, afterZ: { [cardId]: rect.zOrder ?? null } });
+      Object.assign(rect, { x: rectangle.x, y: rectangle.y, width: rectangle.width, height: rectangle.height });
     });
   }
 

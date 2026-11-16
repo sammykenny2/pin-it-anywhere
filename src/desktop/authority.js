@@ -8,7 +8,7 @@ import { t } from '../i18n/index.js';
 
 const uuid = value => typeof value === 'string' && value.length === 36 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 const methods = new Set(['pointer.down', 'pointer.move', 'pointer.up', 'pointer.cancel', 'card.select', 'card.edit',
-  'card.transfer', 'card.check', 'editor.change', 'editor.save', 'editor.end', 'editor.full', 'editor.cancel', 'editor.delete', 'interaction.escape', 'interaction.shortcut',
+  'card.transfer', 'card.check', 'card.resetSize', 'editor.change', 'editor.save', 'editor.end', 'editor.full', 'editor.cancel', 'editor.delete', 'interaction.escape', 'interaction.shortcut',
   'interaction.done', 'layout.arrange', 'attachment.preview', 'attachment.open']);
 const arrangements = new Set(['stack', 'spread', 'undo']);
 
@@ -120,7 +120,7 @@ export class DesktopAuthority {
   // the desktop or the wallpaper (see projectDesktop), and wallpaper papers let clicks through.
   #takesClicks(policy) {
     if (!policy.visible || !policy.interactive) return false;
-    if (policy.draggable) return true;
+    if (policy.draggable || policy.editing) return true;
     const resting = this.#residentLayers();
     return restingLayer(policy.layer, resting) !== 'wallpaper';
   }
@@ -128,6 +128,12 @@ export class DesktopAuthority {
     requireValue(point && Number.isFinite(point.x) && Number.isFinite(point.y)
       && Math.abs(point.x) <= 1_000_000 && Math.abs(point.y) <= 1_000_000, 'desktop-point', t('errors.desktop.pointInvalid'));
     return point;
+  }
+  #sizable(cardId, viewId) {
+    const card = this.#workspace.working.cards.find(card => card.id === cardId && !card.deleted);
+    const policy = card && cardPolicy(card, this.#workspace.layout.state, this.#controller.state);
+    requireValue(policy && (policy.draggable || policy.editing), 'outside-scope', t('errors.desktop.outsideScope'));
+    if (policy.editing) requireValue(this.#editor.current()?.viewId === viewId, 'desktop-editor', t('errors.desktop.otherWindowEditing'));
   }
   #matchGesture(viewId, args) {
     requireValue(this.#gesture?.viewId === viewId && this.#gesture.id === args.gestureId
@@ -146,7 +152,7 @@ export class DesktopAuthority {
     const drag = controller.state.dragSession;
     // A quick move the owner ended (adjust mode began, or the paper stopped allowing it) ends quietly in its scene.
     if (this.#gesture && drag?.generation !== this.#gesture.generation) {
-      this.#dropped = this.#gesture.quick ? this.#gesture : null; this.#gesture = null;
+      this.#dropped = this.#gesture.quick || this.#gesture.sizing ? this.#gesture : null; this.#gesture = null;
     }
     if (method.startsWith('pointer.') && method !== 'pointer.down' && this.#dropped?.viewId === viewId
       && this.#dropped.id === args.gestureId && this.#dropped.pointerId === args.pointerId) {
@@ -180,11 +186,14 @@ export class DesktopAuthority {
           const card = this.#workspace.working.cards.find(value => value.id === args.cardId && !value.deleted);
           const policy = card && cardPolicy(card, this.#workspace.layout.state, controller.state);
           requireValue(policy && !policy.draggable && this.#takesClicks(policy), 'outside-scope', t('errors.desktop.cardUnavailable'));
-        } else this.#card(args.cardId);
+        } else this.#sizable(args.cardId, viewId);
         this.#point(args.point);
+        const editing = controller.state.editingCardId === args.cardId;
         const accepted = controller.pointerDown(args.cardId, args.point, { pointerId: args.pointerId, handle: args.handle === true, quick,
+          edge: args.edge ?? null, threshold: args.keyboard === true ? 1 : 5,
           lift: quick && this.#liftQuickMove() === true });
         if (accepted) this.#gesture = { viewId, id: args.gestureId, pointerId: args.pointerId, cardId: args.cardId, quick,
+          sizing: Boolean(args.edge) || editing,
           generation: controller.state.dragSession.generation };
         return { accepted };
       }
@@ -192,18 +201,19 @@ export class DesktopAuthority {
         this.#matchGesture(viewId, args);
         return controller.pointerMove(this.#point(args.point), { pointerId: args.pointerId, shiftKey: args.shiftKey === true, labels: this.#labels(args) });
       case 'pointer.up': {
-        this.#matchGesture(viewId, args); const { cardId, quick } = this.#gesture;
+        this.#matchGesture(viewId, args); const { cardId, quick, sizing } = this.#gesture;
         this.#point(args.point); const labels = this.#labels(args);
         try {
           const result = await controller.pointerUp(args.point, { pointerId: args.pointerId, shiftKey: args.shiftKey === true, labels });
           // A quick move that never passed the threshold changes nothing: a resting paper is not selected.
-          if (result.kind === 'click' && !quick) await controller.select(cardId, { gesture: true });
+          if (result.kind === 'click' && !quick && !sizing) await controller.select(cardId, { gesture: true });
           return result;
         } finally { this.#gesture = null; }
       }
       case 'pointer.cancel':
         this.#matchGesture(viewId, args); controller.cancelDrag(); this.#gesture = null; return null;
       case 'card.select': this.#card(args.cardId); return controller.select(args.cardId, { gesture: true });
+      case 'card.resetSize': this.#sizable(args.cardId, viewId); return controller.resetSize(args.cardId);
       // Adjust mode only arranges (SPEC-003, 2026-10-24): a resting paper that takes clicks opens for a quick edit.
       case 'card.edit': {
         const card = this.#workspace.working.cards.find(value => value.id === args.cardId && !value.deleted);

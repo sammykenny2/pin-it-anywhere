@@ -15,4 +15,8 @@ export default {
   'desktop.adjust.stack': '堆疊',
   'desktop.adjust.spread': '攤開',
   'desktop.adjust.undo': '復原',
+  'desktop.resize.grip': '調整便箋大小',
+  'desktop.resize.keys': '按 Enter 或空白鍵開始。用方向鍵調整大小，按住 Shift 可加大幅度。按 Enter 保留大小，Esc 取消。',
+  'desktop.resize.reset': '恢復預設桌面大小',
+  'desktop.resize.restored': '已恢復預設桌面大小',
 };

@@ -181,6 +181,10 @@ class CombinedLayout {
       return this.#ofCard(cardId).layout.move(cardId, position);
     });
   }
+  async resize(cardId, rectangle, expectedRectangle) {
+    rectangle = copy(rectangle); expectedRectangle = copy(expectedRectangle);
+    return this.#perform(() => this.#ofCard(cardId).layout.resize(cardId, rectangle, expectedRectangle));
+  }
   raise(ids) {
     if (!ids.length) return Promise.resolve(false);
     const owners = new Set(ids.map(id => this.#ofCard(id)));

@@ -229,7 +229,7 @@ import AppKit
             else { throw PinItAnywhereFailure("scene-command", "The desktop command isn't valid.") }
             let id = try PinItAnywhereProtocol.text(command, "id"), method = try PinItAnywhereProtocol.text(command, "method"), requested = try PinItAnywhereProtocol.number(args, "topology")
             try PinItAnywhereProtocol.require(PinItAnywhereProtocol.isUUID(id) && PinItAnywhereProtocol.text(command, "sessionId") == session && PinItAnywhereProtocol.number(command, "serial") > 0 && command["args"] is [String: Any], "scene-session", "The desktop command belongs to another session.")
-            let allowed = ["pointer.down", "pointer.move", "pointer.up", "pointer.cancel", "card.select", "card.edit", "card.transfer", "card.check", "editor.change", "editor.save", "editor.end", "editor.full", "editor.cancel", "editor.delete", "interaction.escape", "interaction.shortcut", "interaction.done", "layout.arrange", "attachment.preview", "attachment.open"]
+            let allowed = ["pointer.down", "pointer.move", "pointer.up", "pointer.cancel", "card.select", "card.edit", "card.transfer", "card.check", "card.resetSize", "editor.change", "editor.save", "editor.end", "editor.full", "editor.cancel", "editor.delete", "interaction.escape", "interaction.shortcut", "interaction.done", "layout.arrange", "attachment.preview", "attachment.open"]
             try PinItAnywhereProtocol.require(allowed.contains(method), "unsupported-method", "The desktop surface does not support this operation.")
             if method == "card.edit" { editRequested = ProcessInfo.processInfo.systemUptime }
             let draft = method == "editor.change"

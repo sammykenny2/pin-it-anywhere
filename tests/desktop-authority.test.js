@@ -53,6 +53,31 @@ async function fixture(attachments, { check, residentLayers, liftQuickMove } = {
     editor: () => editor, shortcutIntent: () => shortcutIntent, arranged, durable: () => durable, fail: value => { fail = value; }, flush: value => { flush = value; } };
 }
 
+test('manual sizing/reset obey scope, editor-view ownership, edge validation and topology', async () => {
+  const f = await fixture();
+  const args = () => ({ gestureId: uuid(), cardId: f.card.id, pointerId: 7, point: { x: 0, y: 0 }, edge: 'se' });
+  await rejects(f.command('pointer.down', args()), 'outside-scope');
+  await rejects(f.command('card.resetSize', { cardId: f.card.id }), 'outside-scope');
+  await f.workspace.layout.configure({ quickMove: true }, f.workspace.snapshot);
+  await f.command('card.edit', { cardId: f.card.id });
+  await rejects(f.command('pointer.down', args(), f.foreign), 'desktop-editor');
+  await rejects(f.command('card.resetSize', { cardId: f.card.id }, f.foreign), 'desktop-editor');
+  await rejects(f.command('pointer.down', { ...args(), edge: 'toString' }), 'invalid-pointer');
+  const before = f.workspace.layout.state.placements[f.card.id];
+  const down = args(); assert.deepEqual(await f.command('pointer.down', down), { accepted: true });
+  await f.command('pointer.move', { ...down, point: { x: 30, y: 20 }, shiftKey: true });
+  assert.equal((await f.command('pointer.up', { ...down, point: { x: 30, y: 20 }, shiftKey: true })).kind, 'resized');
+  assert.equal(f.workspace.layout.state.placements[f.card.id].width, before.width + 30);
+  assert.equal(f.controller.state.editingCardId, f.card.id);
+  await f.command('editor.cancel', { draftId: f.editor().draftId, sequence: 0 });
+  assert.equal(f.workspace.layout.state.placements[f.card.id].width, before.width + 30);
+  await f.controller.activate({ kind: 'all' }); await f.command('card.resetSize', { cardId: f.card.id });
+  assert.equal(f.workspace.layout.state.placements[f.card.id].width, 240);
+  const during = args(); await f.command('pointer.down', during); f.authority.invalidateDisplays();
+  assert.equal(f.controller.state.dragSession, null);
+  await rejects(f.command('pointer.up', { ...during, point: { x: 80, y: 50 } }), 'desktop-topology');
+});
+
 test('scene shortcuts resolve the current owner bindings and cannot supply a different target or reuse removed bindings', async () => {
   const f = await fixture(); const key = 'Ctrl+Shift+1';
   await f.workspace.layout.configure({ shortcuts: { [key]: f.a.id } }, f.workspace.snapshot);

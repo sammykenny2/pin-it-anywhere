@@ -3,6 +3,7 @@
 > This directory contains implementation plans that define *how* to build features.
 
 Current interaction plan: [PLAN-003](003-desktop-interaction-implementation.md), based on SPEC-003.
+Manual desktop sizing follows [PLAN-016](016-manual-desktop-note-sizing.md).
 [PLAN-007](007-schema-evolution-and-migrations.md) applies installed-data/backup compatibility and recoverable-migration gates to every format change.
 The [Google Drive plan](002-google-drive-notes-mvp.md) supplies source/backup integration work,
 with editor and backup scope reconciliation before contract freeze; it is not an accepted framework decision.

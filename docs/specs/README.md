@@ -3,6 +3,7 @@
 > This directory contains feature specifications that define *what* to build and *why*.
 
 Current behavior contract: [SPEC-003](003-desktop-cards-groups-and-formation.md).
+Manual sizing extends it through [SPEC-015](015-manual-desktop-note-sizing.md).
 Alpha data policy: [SPEC-007](007-schema-evolution-and-migrations.md). Preserve installed data/backups; version incompatible formats with recoverable migrations when needed.
 Confirmed U requirements and delegated D defaults are actionable when implementation is authorized;
 ask only the Q items needed for the current work. Earlier backup/editor cuts are not approved.

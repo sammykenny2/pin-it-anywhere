@@ -32,6 +32,9 @@ from saved relative order; implementation and native acceptance are distinguishe
   and traverses a separate stable sequence (SPEC-014). Done retains completed order and restores resident layers.
 - Paper size normally stays stable; when needed, formation resizes papers only with consent, and without consent they
   may overflow the group region.
+- Deliberate manual sizing is available during desktop in-place editing, group/all adjustment and an opt-in
+  Command/Ctrl edge drag. The keyboard grip and single-paper reset use independent, undoable device geometry;
+  entering or ending an editor never automatically changes dimensions (SPEC-015).
 - At most nine groups; the grid has rows ≤3 and columns ≤4, with a product ≤9. 2 rows × 4 columns and 3 rows × 3
   columns are valid; 3 rows × 4 columns is not.
 - A new card starts in its own group region without rearranging older cards; formation offers undo.

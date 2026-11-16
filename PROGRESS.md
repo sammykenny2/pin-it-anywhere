@@ -50,8 +50,10 @@ When and how to update this file is defined in [AGENTS.md](AGENTS.md).
   attachments pasted or dropped into the editor, and an explanation with a confirmed set-aside when local data cannot be
   opened.
 - Papers: this device chooses Small (160×160), Medium (240×240, the default), Large (320×320) or Tall (320×480) for new desktop placements;
-  papers shrink proportionally to fit a short group region (minimum shortest side 160). Placed papers keep their size
-  until "reset desktop layout", which keeps the preference and re-places papers at the selected size. The main-window
+  papers shrink proportionally to fit a short group region (minimum shortest side 160). Manual edge/corner sizing works
+  in desktop in-place editing, group/all adjustment and opt-in quick operation, with keyboard sizing and single-note
+  default-size reset. Committed geometry is independent of content Save/Cancel and uses existing local Undo.
+  "Reset desktop layout" keeps the preference and re-places papers at the selected size. The main-window
   board stays independent. One group palette serves desktop and main window; group regions follow the primary display.
 - Main window: a board of paper tiles or a list, remembered per device; an optional title that search and sharing include;
   papers that cannot scroll end with "…"; attachments sit in a thumbnail strip under the text; H1–H6 sizes and code colouring;
@@ -59,6 +61,8 @@ When and how to update this file is defined in [AGENTS.md](AGENTS.md).
 - Verified with model tests, Edge/Chromium browser and scene probes, and the Windows native UI probes.
 - Persistent desktop stacking has its own acceptance boundary in [testing](docs/testing.md#persistent-desktop-order);
   Windows/X11, multi-display and installed-update acceptance remain open for that feature.
+- Manual sizing has shared, Chromium/WebKit and macOS bridge coverage; installed-host physical pointer/cursor, real IME
+  and multiple-display acceptance remain open in [testing](docs/testing.md#manual-desktop-sizing).
 - The application uses record-level IndexedDB/native SQLite persistence, bounded current heads, draft deltas and
   paged history/outbox. Older local formats require an explicit local discard; no migration runs. Versions loads
   remote bodies on selection. Trash offers Delete forever and Empty Trash with resumable cleanup; unpublished
@@ -207,7 +211,6 @@ When and how to update this file is defined in [AGENTS.md](AGENTS.md).
 
 Pending decisions:
 
-- Paper shape: keep squares or move to portrait, after the user reviews the measured line counts.
 - Whether to keep the ADR-049 software rendering (about 130 MB more per 4K display) now that the .NET 10 WPF fix is in.
 - Whether to re-enable the ADR-045 one-time reopen after a sign-in crash, turn on LocalDumps or update the GPU driver (the user decides).
 - A release channel beyond preview and a long-term update index beyond the ten-entry Atom feed

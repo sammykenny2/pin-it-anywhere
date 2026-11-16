@@ -1,9 +1,10 @@
 # Decision index
 
-Updated: 2026-11-14.
+Updated: 2026-11-16.
 
 | Record | Status | Scope |
 |---|---|---|
+| [ADR-074](074-manual-desktop-note-sizing.md) | Accepted (2026-11-16) | Manual desktop sizing in adjust/in-place/quick states, keyboard grip and single-paper reset using existing device geometry and Undo |
 | [ADR-073](073-alpha-data-compatibility-and-migrations.md) | Accepted (2026-11-14) | Alpha data protection: allow schema evolution with compatible round trips or validated recoverable migrations; supersedes the V1-only restriction |
 | [ADR-072](072-persistent-desktop-note-stacking.md) | Accepted (2026-11-14) | Remember note/group raises within resident layers; separate visual and navigation order, device-wide allocation, conditional Undo and isolated backups |
 | [ADR-070](070-release-channels-and-architecture.md) | Accepted policy; implementation pending (2026-11-13) | Release-only external delivery, no public CER, signed MSIX with future native ARM64/bundle, DMG/Sparkle ZIP, DEB first and later AppImage, Play/TestFlight feedback |

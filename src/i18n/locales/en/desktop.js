@@ -15,4 +15,8 @@ export default {
   'desktop.adjust.stack': 'Stack',
   'desktop.adjust.spread': 'Spread',
   'desktop.adjust.undo': 'Undo',
+  'desktop.resize.grip': 'Resize note',
+  'desktop.resize.keys': 'Press Enter or Space to start. Use arrow keys to resize, or Shift and arrows for larger steps. Press Enter to keep the size or Escape to cancel.',
+  'desktop.resize.reset': 'Restore default desktop size',
+  'desktop.resize.restored': 'Default desktop size restored',
 };

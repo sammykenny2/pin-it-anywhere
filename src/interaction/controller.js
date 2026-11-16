@@ -4,6 +4,8 @@ import { groupLayer } from '../layout/stages.js';
 import { reachable, rescueRect } from '../layout/store.js';
 import { t } from '../i18n/index.js';
 import { visualOrder } from '../layout/stacking.js';
+import { resizeEdges, resizeRectangle, sameRectangle } from '../layout/resize.js';
+import { paperDimensions } from '../layout/paper-size.js';
 
 export const idleInteraction = () => ({ operationScope: { kind: 'none' }, activeGroupId: null,
   selectedCardId: null, editingCardId: null, dragSession: null });
@@ -202,19 +204,23 @@ export class InteractionController {
 
   // A quick move drags one resting paper outside adjust mode; it is only ever an ordinary move. With lift it rides the
   // Top layer while it drags (DesktopInfo.liftQuickMove).
-  pointerDown(cardId, point, { pointerId = 1, control = false, handle = false, threshold = 5, quick = false, lift = false } = {}) {
+  pointerDown(cardId, point, { pointerId = 1, control = false, handle = false, threshold = 5, quick = false, lift = false, edge = null } = {}) {
     this.#assertIdle();
-    if (control || (this.#state.editingCardId === cardId && !handle)) return false;
+    requireValue(edge === null || resizeEdges.includes(edge), 'invalid-pointer', t('errors.core.dragStartInvalid'));
+    if (control || (this.#state.editingCardId === cardId && !handle && !edge)) return false;
     requireValue(!this.#state.dragSession, 'drag-active', t('errors.core.dragActive'));
     const card = this.#card(cardId); const layout = this.#layout.state;
     if (quick) requireValue(quickMovable(card, layout, this.#state), 'quick-move-off', t('errors.core.quickMoveOff'));
-    else requireValue(card && cardPolicy(card, layout, this.#state).draggable, 'outside-scope', t('errors.core.outsideAdjustScope'));
+    else requireValue(card && (cardPolicy(card, layout, this.#state).draggable || cardPolicy(card, layout, this.#state).editing),
+      'outside-scope', t('errors.core.outsideAdjustScope'));
     requireValue(layout.placements[cardId] && Number.isFinite(threshold) && threshold > 0
       && Number.isFinite(point.x) && Number.isFinite(point.y), 'invalid-pointer', t('errors.core.dragStartInvalid'));
     this.#suppressedCard = null;
     this.#state.dragSession = { generation: crypto.randomUUID(), cardId, pointerId, groupId: card.groupId, revision: card.revision,
       layoutRevision: layout.revision, start: copy(point), current: copy(point), origin: copy(layout.placements[cardId]),
       position: copy(layout.placements[cardId]), threshold, dragging: false, target: null,
+      ...(edge ? { edge } : {}),
+      ...(this.#state.editingCardId === cardId && this.#state.operationScope.kind === 'none' ? { editing: true } : {}),
       ...(quick ? { quick: true, layer: cardPolicy(card, layout, this.#state).layer, ...(lift ? { lift: true } : {}) } : {}) };
     return true;
   }
@@ -226,8 +232,9 @@ export class InteractionController {
     drag.current = copy(point);
     if (Math.hypot(point.x - drag.start.x, point.y - drag.start.y) >= drag.threshold) drag.dragging = true;
     if (!drag.dragging) return copy(drag);
+    if (drag.edge) { drag.position = resizeRectangle(drag.origin, drag.start, point, drag.edge); return copy(drag); }
     drag.position = { ...drag.origin, x: drag.origin.x + point.x - drag.start.x, y: drag.origin.y + point.y - drag.start.y };
-    if (drag.quick) return copy(drag);
+    if (drag.quick || drag.editing) return copy(drag);
     const groups = activeGroups(this.#getSnapshot());
     const layout = this.#layout.state;
     let regions = [];
@@ -252,6 +259,7 @@ export class InteractionController {
       this.cancelDrag(); return Promise.resolve({ kind: 'cancelled', reason: 'target-changed' });
     }
     if (!drag.dragging) { this.#state.dragSession = null; return Promise.resolve({ kind: 'click' }); }
+    if (drag.edge || drag.editing) return this.#endGeometry(drag);
     if (drag.quick) return this.#endQuickMove(drag);
     this.#suppressedCard = drag.cardId;
     if (options.shiftKey && !drag.target) { this.cancelDrag(); return Promise.resolve({ kind: 'cancelled', reason: 'no-target' }); }
@@ -281,7 +289,43 @@ export class InteractionController {
     const card = this.#card(drag.cardId); const layout = this.#layout.state; const saved = layout.placements[drag.cardId];
     const resting = { ...this.#state, dragSession: null };
     return quickMovable(card, layout, resting) && cardPolicy(card, layout, resting).layer === drag.layer
-      && Boolean(saved) && saved.x === drag.origin.x && saved.y === drag.origin.y;
+      && sameRectangle(saved, drag.origin);
+  }
+
+  #geometryHolds(drag) {
+    if (drag.quick) return this.#quickHolds(drag);
+    const card = this.#card(drag.cardId), layout = this.#layout.state;
+    const policy = card && cardPolicy(card, layout, this.#state);
+    return Boolean(card && card.groupId === drag.groupId && policy.visible
+      && (drag.editing ? policy.editing : policy.draggable) && sameRectangle(layout.placements[drag.cardId], drag.origin));
+  }
+
+  #endGeometry(drag) {
+    if (!this.#geometryHolds(drag)) { this.cancelDrag(); return Promise.resolve({ kind: 'cancelled', reason: 'geometry-changed' }); }
+    const areas = this.#workAreas();
+    const position = areas.length && !reachable(drag.position, areas) ? rescueRect(drag.position, areas) : drag.position;
+    this.#busy = true;
+    this.#ending = (async () => {
+      try {
+        // No content flush: resizing an editor must not disturb an active composition or caret.
+        if (drag.edge) await this.#layout.resize(drag.cardId, position, drag.origin);
+        else await this.#layout.move(drag.cardId, position);
+        return { kind: drag.edge ? 'resized' : 'moved', cardId: drag.cardId };
+      } finally { this.#state.dragSession = null; this.#busy = false; this.#ending = null; }
+    })();
+    return this.#ending;
+  }
+
+  async resetSize(cardId) {
+    this.#assertIdle();
+    requireValue(!this.#state.dragSession, 'drag-active', t('errors.core.dragActive'));
+    const card = this.#card(cardId), layout = this.#layout.state;
+    const policy = card && cardPolicy(card, layout, this.#state);
+    requireValue(policy && (policy.draggable || policy.editing), 'outside-scope', t('errors.core.outsideAdjustScope'));
+    const origin = layout.placements[cardId];
+    this.#busy = true;
+    try { await this.#layout.resize(cardId, { ...origin, ...paperDimensions(layout) }, origin); }
+    finally { this.#busy = false; }
   }
 
   // A resting paper has no click or double click to suppress after the move.
@@ -341,7 +385,8 @@ export class InteractionController {
   async reconcile() {
     if (this.#busy) return;
     const drag = this.#state.dragSession;
-    if (drag?.quick && !this.#quickHolds(drag)) this.cancelDrag();
+    if (drag && (drag.edge || drag.editing) && !this.#geometryHolds(drag)) this.cancelDrag();
+    else if (drag?.quick && !this.#quickHolds(drag)) this.cancelDrag();
     const editing = this.#card(this.#state.editingCardId);
     const kept = editing && (this.#state.operationScope.kind === 'none' ? quickEditHolds(editing, this.#layout.state)
       : eligible(editing, this.#layout.state) && inScope(editing, this.#state.operationScope));

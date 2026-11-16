@@ -7,6 +7,10 @@
 > called "Edit". The resident layers, from back to front, are "Wallpaper layer / Desktop layer / Top layer" (internally
 > `wallpaper` / `desktop` / `floating`). Internal code names (`operationScope` and others) are unchanged.
 
+Manual resizing is specified by [SPEC-015](015-manual-desktop-note-sizing.md), approved 2026-11-16. Papers retain
+their size on automatic state transitions; deliberate edge/corner sizing is available in adjust mode, desktop
+in-place editing and the opt-in quick-operation gesture. This extends the earlier move-only descriptions below.
+
 ## Metadata
 
 | Field | Value |
@@ -230,7 +234,7 @@ is told to tidy up. The tenth group must not be dropped or merged arbitrarily.
 - Selecting, cycling, a single click, a double click or starting to edit never change a card's paper size.
 - Stack and spread arrange fixed papers. They must not become an accordion, stretch one card taller, or switch a
   summary to full-text height.
-- Size may be adjusted in a formation with explicit consent; this is an exception the user added later.
+- Size may be adjusted deliberately by the user under SPEC-015, or in a formation with explicit consent.
 - No fixed 140×140 or other pixel size is approved; earlier illustrative sizes are not product specifications.
 - Approved by the user on 2026-11-14: Settings > Desktop notes offers Small (160×160, a 2×2 inch note), Medium
   (240×240, a 3×3 inch note), Large (320×320) and Tall (320×480). These are the full paper bounds, including the title

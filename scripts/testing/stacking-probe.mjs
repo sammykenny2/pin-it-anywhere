@@ -84,6 +84,19 @@ try {
   }
   assert.equal(new Set(visited.map(value => value.id)).size, 3);
   const last = visited.at(-1).id;
+  // The real browser Desktop canvas shares sizing controls and commits to the note's owning IndexedDB profile.
+  const beforeSize = await read(), originalSize = beforeSize.layout.placements[last];
+  await paper(last).locator('.resize-se').focus();
+  await page.keyboard.press('Enter'); await page.keyboard.press('Shift+ArrowRight'); await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await read()).layout.placements[last].width).toBe(originalSize.width + 10);
+  await expect.poll(async () => (await read()).layout.placements[last].height).toBe(originalSize.height + 1);
+  assert.equal(await paper(last).locator('.resize-se').evaluate(node => node === document.activeElement), true);
+  const customSize = (await read()).layout.placements[last];
+  await paper(last).locator('[data-reset-size]').click();
+  await expect.poll(async () => (await read()).layout.placements[last].width).toBe(240);
+  await page.locator('#undo').click();
+  await expect.poll(async () => (await read()).layout.placements[last]).toEqual(customSize);
   await mkdir('build/stacking-checks', { recursive: true });
   await page.screenshot({ path: `build/stacking-checks/${engine}-adjust.png` });
   await page.locator('#stop-operation').click(); await expect(page.locator('#adjust-bar')).not.toBeVisible();
@@ -93,5 +106,13 @@ try {
   await expect.poll(front).toBe(last); assert.deepEqual((await read()).layout.placements, saved);
   await expect(page.locator('#stage .card.selected')).toHaveCount(0);
   await page.screenshot({ path: `build/stacking-checks/${engine}-reopened.png` });
-  assert.deepEqual(errors, []); console.log(`PASS ${engine}: production drag, hit testing, cancel, conditional Undo, cycle and persisted order after reload`);
+  await page.locator('[data-view="board"]').click();
+  await page.locator(`#list [data-card-id="${last}"]`).getByRole('button', { name: 'Note settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Restore default desktop size', exact: true }).click();
+  await expect.poll(async () => (await read()).layout.placements[last].width).toBe(240);
+  const afterReset = (await read()).layout.placements;
+  assert.equal(afterReset[last].x, saved[last].x); assert.equal(afterReset[last].y, saved[last].y);
+  for (const id of [a, b, c].filter(id => id !== last)) assert.deepEqual(afterReset[id], saved[id]);
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  assert.deepEqual(errors, []); console.log(`PASS ${engine}: production drag, hit testing, cancel, conditional Undo, cycle, keyboard resize/reset and persisted geometry/order after reload`);
 } finally { await browser.close(); }

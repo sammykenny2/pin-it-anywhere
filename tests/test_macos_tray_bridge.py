@@ -56,6 +56,7 @@ class MacOSTrayBridgeTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn("PASS tray bridge", result.stdout)
             self.assertIn("PASS macOS stacking", result.stdout)
+            self.assertIn("PASS macOS sizing", result.stdout)
 
 
 if __name__ == "__main__":

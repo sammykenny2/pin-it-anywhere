@@ -28,7 +28,7 @@ export interface DesktopFrame {
 }
 export interface DesktopCommand {
   sessionId: string; id: string; serial: number;
-  method: 'pointer.down' | 'pointer.move' | 'pointer.up' | 'pointer.cancel' | 'card.select' | 'card.edit' | 'card.transfer'
+  method: 'pointer.down' | 'pointer.move' | 'pointer.up' | 'pointer.cancel' | 'card.select' | 'card.edit' | 'card.transfer' | 'card.resetSize'
     | 'editor.change' | 'editor.save' | 'editor.end' | 'editor.full' | 'interaction.escape' | 'interaction.shortcut'
     /** Discards the note's unsaved changes, returning it to its saved revision, and closes the quick edit (ADR-061). */
     | 'editor.cancel' | 'editor.delete'
@@ -36,8 +36,10 @@ export interface DesktopCommand {
     | 'interaction.done' | 'layout.arrange' | 'attachment.preview' | 'attachment.open'
     /** Ticks checklist step args.task of a paper that takes clicks, drawn from note revision args.revision. */
     | 'card.check';
-  /** pointer.down with args.quick true starts a quick move of a resting paper instead of an adjust drag; card.edit opens a
-   * resting paper for a quick edit on the Top layer. */
+  /** pointer.down args.edge selects an edge/corner resize; args.quick uses the opt-in resting-paper gate;
+   * args.keyboard lowers the threshold for the focused grip's one-unit arrow steps. An edited paper's owning view
+   * may resize it or move its title band. card.resetSize is restricted to adjusted/edited papers and preserves position.
+   * card.edit opens a resting paper for a quick edit on the Top layer. */
   args: Record<string, unknown>;
 }
 export interface DesktopInfo {

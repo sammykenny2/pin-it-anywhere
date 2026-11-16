@@ -75,6 +75,33 @@ separate from these isolated adapter/renderer regressions.
 
 ## Acceptance routing for the new interaction
 
+### Manual desktop sizing
+
+[SPEC-015 S01–S12](specs/015-manual-desktop-note-sizing.md) owns sizing acceptance. Run
+`node --test tests/paper-resize.test.js tests/desktop-core.test.js tests/desktop-authority.test.js tests/paper-size.test.js tests/combined-workspace.test.js tests/backup-payload.test.js tests/backup-restore.test.js`.
+These cover all edges/corners, the minimum, quick/edit/adjust gates, no-op/cancel, scope/geometry changes, failed writes,
+unrelated content/layout saves, independent unsaved changes, combined-profile routing, reset and full-geometry Undo.
+Custom geometry and existing `move` history reopen and round-trip through a V1 ZIP without adding format fields or
+rewriting content/outbox. This does not add migration support for unsupported historical formats.
+
+After `npm run build` and the documented loopback preview, run
+`node scripts/testing/paper-resize-probe.mjs --url http://127.0.0.1:PORT --browser chromium` and repeat with `webkit`.
+The production scene talks to the real shared authority with disposable in-memory notes. It exercises reading vs quick
+edge drag, edited/adjusted sizing, keyboard commit/Escape/blur, reset, simulated composition/caret preservation and
+failed-save visual rollback. `stacking-probe.mjs` additionally checks the actual browser Desktop preview's keyboard
+sizing/reset and IndexedDB persistence/reload in both engines. `scene-probe.mjs` retains the existing text/checklist,
+attachment and quick-edit regressions; its title drag begins clear of the new edge hit region.
+
+`python3 -B -m unittest discover -s tests -p 'test_macos_tray_bridge.py' -v` checks the real AppKit mailbox, bundled
+WKWebView grip, encrypted SQLite, single-paper reset and Undo using synthetic notes. This is native component evidence,
+not physical input acceptance. Images are generated under ignored `build/paper-resize-checks`.
+
+Still verify on installed Windows/macOS/Linux: physical drags of every edge with cursor feedback, key release during
+quick resize, real IME composition, overlapping/multiple monitors and mixed DPI, cancellation on display change, and
+keyboard focus under each shell. In Windows confirm quick resize rides the Top layer and leaves no Explorer remnants.
+GNOME/XWayland wallpaper papers must resize only while adjusted. Browser composition events are simulated and do not
+prove real IME behavior. Independent review remains separate from author-run checks.
+
 ### Persistent desktop order
 
 [SPEC-014 Z01–Z24](specs/014-desktop-note-stacking.md) owns stacking acceptance. Run

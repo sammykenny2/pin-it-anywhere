@@ -54,6 +54,7 @@ export interface TransferUndo {
   expectedRevision: Revision;
 }
 export interface LayoutUndo {
+  /** A move entry stores complete before-geometry for both manual moving and resizing. */
   kind: 'move' | 'formation' | 'transfer';
   before: Record<Id, Geometry>;
   /** Undo restores a label only if it still equals this action's label; null represents absence. */
@@ -83,8 +84,9 @@ export interface DeviceLayout {
   groupOpacity?: Record<Id, number>;
   /** Groups whose notes stand out on this device, any number of them; absent means none. Never syncs. */
   groupHighlights?: Record<Id, true>;
-  /** Whether holding the platform key and dragging moves a resting paper (SPEC-003 quick move); absent means off. Never syncs. */
+  /** Whether the platform key enables moving, edge resizing and quick editing; absent means off. Never syncs. */
   quickMove?: boolean;
+  newPaperSize?: 'small' | 'medium' | 'large' | 'tall';
   /** The main window's view of a group's papers on this device; missing shows the board. */
   mainView?: 'board' | 'list';
   /** The group the main window shows on this device, which quick capture files into; missing shows the first group. */
@@ -117,6 +119,11 @@ export interface DragSession {
   threshold: number;
   dragging: boolean;
   target: DropTarget | null;
+  /** Present only for a manual resize; absent is the existing move/transfer gesture. */
+  edge?: 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
+  quick?: boolean;
+  lift?: boolean;
+  editing?: boolean;
 }
 export interface InteractionState {
   operationScope: Scope;

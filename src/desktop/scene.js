@@ -10,6 +10,8 @@ import { getLocale, localizeDocument, setLocale, t } from '../i18n/index.js';
 import { translucent } from '../layout/opacity.js';
 import { limitContextMenu } from '../app/context-menu.js';
 import { createSecondPress, editorIcons, SECOND_PRESS_MS } from '../app/second-press.js';
+import { resizeRectangle } from '../layout/resize.js';
+import { installKeyboardSizing, resizeEdgeAt, updateSizingControls } from './sizing.js';
 
 limitContextMenu();
 const root = document.querySelector('#scene'); const status = document.querySelector('#scene-status');
@@ -167,6 +169,8 @@ function render(next) {
       // Adjust mode only arranges (SPEC-003, 2026-10-24): an adjusted paper carries no Edit or "⋯".
       actions.replaceChildren();
     }
+    updateSizingControls(paper, card.draggable || editor?.cardId === card.id,
+      !card.editing && card.interactive && Boolean(next.quickMove));
     if (gesture?.cardId === card.id && gesture.preview) rect(paper, gesture.preview);
   });
   drawnLocale = getLocale();
@@ -226,9 +230,10 @@ const refresh = createFrameRefresher(async () => {
     }
   } finally { await bridge.request('scene.discard', { token: value.token }).catch(() => {}); }
 });
-function pointerArgs(current, event) { return { gestureId: current.id, pointerId: current.pointerId, point: point(event), shiftKey: event.shiftKey, labels: labels() }; }
+function pointerArgs(current, event) { return { gestureId: current.id, pointerId: current.pointerId, point: point(event), shiftKey: event.shiftKey === true, labels: labels() }; }
 function paintDrag(current, value) {
-  current.preview = { ...current.origin, x: current.origin.x + value.x - current.start.x, y: current.origin.y + value.y - current.start.y };
+  current.preview = current.edge ? resizeRectangle(current.origin, current.start, value, current.edge)
+    : { ...current.origin, x: current.origin.x + value.x - current.start.x, y: current.origin.y + value.y - current.start.y };
   const paper = nodes.get(current.cardId)?.paper; if (paper) rect(paper, current.preview);
 }
 async function pump(current) {
@@ -248,12 +253,16 @@ const quickKey = event => frame?.quickMove === 'meta' ? event.metaKey : frame?.q
 // keeps the pointer but does not move the paper itself.
 const lifted = current => current.quick && info.liftQuickMove === true && info.layer !== 'floating';
 const moving = on => root.classList.toggle('moving', on);
+function restorePreview(current) {
+  const paper = nodes.get(current.cardId)?.paper, saved = frame?.cards.find(card => card.id === current.cardId);
+  if (paper && saved) rect(paper, saved.rect);
+}
 // The owner already ended this quick move: the paper goes back to its frame position without another command.
 async function release(current) {
   if (current.ended) return;
   current.ended = true; if (gesture === current) gesture = null; moving(false);
   if (root.hasPointerCapture(current.pointerId)) root.releasePointerCapture(current.pointerId);
-  await refresh();
+  await refresh(); restorePreview(current);
 }
 async function cancel() {
   const current = gesture; if (!current || current.ended) return;
@@ -264,7 +273,32 @@ async function cancel() {
     await client.command('pointer.cancel', { gestureId: current.id, pointerId: current.pointerId });
   } finally {
     if (root.hasPointerCapture(current.pointerId)) root.releasePointerCapture(current.pointerId);
+    await refresh(); restorePreview(current);
+  }
+}
+function beginGesture(cardId, event, { quick = false, edge = null, keyboard = false, handle = false } = {}) {
+  const start = point(event), id = crypto.randomUUID();
+  const current = { id, cardId, pointerId: event.pointerId, start, origin: frame.cards.find(c => c.id === cardId).rect,
+    quick, edge, keyboard, down: client.command('pointer.down', { gestureId: id, cardId, pointerId: event.pointerId,
+      point: start, handle, ...(edge ? { edge } : {}), ...(keyboard ? { keyboard: true } : {}), ...(quick ? { quick: true } : {}) }) };
+  gesture = current; current.down.catch(report);
+  if (quick || edge) { moving(true); if (quick) getSelection()?.removeAllRanges(); }
+  return current.down;
+}
+async function endGesture(event) {
+  const current = gesture; if (!current || current.ended || event.pointerId !== current.pointerId) return;
+  const args = pointerArgs(current, event); current.ended = true;
+  if (current.preview) paintDrag(current, args.point);
+  try {
+    await current.pumping;
+    if ((await current.down).accepted) await client.command('pointer.up', args);
     await refresh();
+  } catch (error) {
+    await client.command('pointer.cancel', { gestureId: current.id, pointerId: current.pointerId }).catch(() => {}); throw error;
+  } finally {
+    gesture = null; moving(false);
+    if (root.hasPointerCapture(event.pointerId)) root.releasePointerCapture(event.pointerId);
+    await refresh(); restorePreview(current);
   }
 }
 async function initialize() {
@@ -307,16 +341,16 @@ async function initialize() {
     const operable = event.target.closest('.card.operable');
     // A resting paper moves only when the key was already held at the press; otherwise its text selects as before.
     // The paper being edited does not move.
-    const resting = !operable && quickKey(event) ? event.target.closest('.card.interactive') : null;
+    const editing = event.target.closest('.card.paper-sizing');
+    const resting = !operable && !editing && quickKey(event) ? event.target.closest('.card.interactive') : null;
     const quick = resting && !frame.cards.find(card => card.id === resting.dataset.cardId)?.editing ? resting : null;
-    const paper = operable || quick;
-    if (displayPending || info.active === false || gesture || !paper || event.button !== 0 || event.target.closest('button,a,input,textarea,select')) return;
-    const cardId = paper.dataset.cardId; const start = point(event); const id = crypto.randomUUID();
-    gesture = { id, cardId, pointerId: event.pointerId, start, origin: frame.cards.find(c => c.id === cardId).rect, quick: Boolean(quick),
-      down: client.command('pointer.down', { gestureId: id, cardId, pointerId: event.pointerId, point: start, handle: Boolean(event.target.closest('.card-summary')),
-        ...(quick ? { quick: true } : {}) }) };
-    if (quick) { moving(true); getSelection()?.removeAllRanges(); }
-    gesture.down.catch(report); root.setPointerCapture(event.pointerId); event.preventDefault();
+    const paper = operable || editing || quick;
+    const edge = paper && (quick ? resizeEdgeAt(event, paper) : event.target.closest('[data-resize-edge]')?.dataset.resizeEdge);
+    const handle = Boolean(event.target.closest('.card-summary'));
+    if (displayPending || info.active === false || gesture || !paper || event.button !== 0
+      || !edge && event.target.closest('button,a,input,textarea,select') || editing && !operable && !edge && !handle) return;
+    void beginGesture(paper.dataset.cardId, event, { quick: Boolean(quick), edge: edge || null, handle });
+    root.setPointerCapture(event.pointerId); event.preventDefault();
   };
   root.onselectstart = event => { if (gesture?.quick) event.preventDefault(); };
   root.onpointermove = event => {
@@ -328,22 +362,31 @@ async function initialize() {
   // Only a release that ends a gesture becomes the one a quick edit waits for; a press ignored while the previous
   // gesture was still ending must not stand in for it.
   root.onpointerup = event => {
-    const current = gesture; if (!current || current.ended || event.pointerId !== current.pointerId) return;
-    const args = pointerArgs(current, event); current.ended = true;
-    released = run(async () => {
-      if (current.preview) paintDrag(current, args.point);
-      try {
-        await current.pumping;
-        if ((await current.down).accepted) await client.command('pointer.up', args);
-        await refresh();
-      }
-      catch (error) {
-        await client.command('pointer.cancel', { gestureId: current.id, pointerId: current.pointerId }).catch(() => {}); throw error;
-      }
-      finally { gesture = null; moving(false); if (root.hasPointerCapture(event.pointerId)) root.releasePointerCapture(event.pointerId); await refresh(); }
-    });
+    if (!gesture || gesture.ended || gesture.pointerId !== event.pointerId) return;
+    released = endGesture(event).catch(report);
   };
-  root.onpointercancel = () => { void run(cancel); }; root.onlostpointercapture = () => { void run(cancel); };
+  root.onpointercancel = root.onlostpointercapture = event => {
+    if (gesture && !gesture.keyboard && gesture.pointerId === event.pointerId) void run(cancel);
+  };
+  root.addEventListener('keydown', event => {
+    if (gesture && !gesture.keyboard && event.key === 'Escape' && !event.isComposing) {
+      event.preventDefault(); event.stopPropagation(); void run(cancel);
+    }
+  }, true);
+  const keyboardPointer = 2147483647;
+  installKeyboardSizing(root, {
+    begin: async (cardId, value) => {
+      if (gesture || displayPending || info.active === false) throw new Error(t('errors.desktop.busy'));
+      if (!(await beginGesture(cardId, { ...value, pointerId: keyboardPointer }, { edge: 'se', keyboard: true })).accepted) await cancel();
+    },
+    move: async value => {
+      if (!gesture?.keyboard || gesture.ended) return;
+      gesture.latest = pointerArgs(gesture, { ...value, pointerId: keyboardPointer });
+      paintDrag(gesture, gesture.latest.point); await pump(gesture);
+    },
+    end: value => endGesture({ ...value, pointerId: keyboardPointer }), cancel,
+    reset: async cardId => { await client.command('card.resetSize', { cardId }); await refresh(); }, report,
+  });
   // Quick edit (SPEC-003, 2026-10-24): the key held on a double click opens a resting paper once its second release is
   // settled, so the owner sees no quick move still pending. A captured press aims the double click at the scene itself,
   // so the paper is found under the pointer.

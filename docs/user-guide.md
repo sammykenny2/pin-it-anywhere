@@ -212,11 +212,10 @@ Desktop notes exist only in the desktop apps (Windows, macOS, Linux).
 - "Show completed notes" in Settings > Desktop notes is off at first. While it is off, completed notes leave this computer's
   desktop, also while you adjust, and return to their old places when you turn it on or move them back to To do.
   Each computer keeps its own choice, and "Reset desktop layout" turns it back off.
-- "Hold Ctrl to drag or double-click a note" ("Hold ⌘ to drag or double-click a note" on macOS) in Settings > Desktop
+- "Hold Ctrl to move, resize or edit a note" ("Hold ⌘ to move, resize or edit a note" on macOS) in Settings > Desktop
   notes is off at first. When it is on, hold Ctrl (⌘ on macOS) before you press on a note on the Desktop or Top layer, then drag: that
   one note moves without entering adjust mode, stays on its layer (on Windows a Desktop-layer note floats above other windows while you drag it), and the main window stays where it is. Without the
-  key a press selects text as before, and checkboxes, attachments and links keep working with it. It only moves the
-  note, never to another group. Esc while dragging, or a change of displays, puts it back; "Undo" in adjust mode takes
+  key a press selects text as before, and checkboxes, attachments and links keep working with it. An edge drag resizes instead (see [Resize a desktop note](#resize-a-desktop-note)); neither operation changes the group. Esc while dragging, or a change of displays, puts it back; "Undo" in adjust mode takes
   a finished move back. Each computer keeps its own choice, and "Reset desktop layout" turns it back off. GNOME through
   XWayland keeps notes on the Wallpaper layer only, so it does not offer this
   ([SPEC-003](specs/003-desktop-cards-groups-and-formation.md#2026-10-24-addendum-quick-move)).
@@ -276,10 +275,27 @@ Desktop notes exist only in the desktop apps (Windows, macOS, Linux).
 - If a layout operation spanning collections is interrupted, its previous view stays until recovery completes and
   the failure is reported. Reopening or retrying resumes the saved operation; notes are retained. A stale operation
   cannot overwrite newer changes or revive a permanently deleted note. The main-window board/list order is separate.
-- Dragging only moves a note. It changes groups only when you drop it on another group's receiving label, or hold
+- Dragging the interior moves a note; dragging an edge resizes it. It changes groups only when you drop it on another group's receiving label, or hold
   Shift and drop it into another group's region.
 - "Stack" and "Spread" (Arrange) show a preview first, and "Apply arrangement" applies it. Resizing notes has to be
   allowed each time ("Allow resizing notes this time"). "Undo" reverts position, size and group transfers in order.
+
+## Resize a desktop note
+
+- During desktop in-place editing, drag the paper's edges or corners to change its size, or drag its title band to
+  move it. Group/all adjustment also offers resizing on every paper in its scope.
+- With the quick-operation setting enabled, hold Command on macOS or Ctrl on Windows/Linux before dragging an edge
+  of a resting Desktop- or Top-layer note. Dragging its interior still moves it. Releasing the key mid-drag continues
+  the operation. Wallpaper notes need adjust mode.
+- The bottom-right grip identifies resizing. Tab to it during editing/adjustment and press Enter or Space, then use
+  arrows for one-unit steps or Shift+arrows for ten. Enter keeps the size; Escape cancels the preview. Leaving the grip
+  also cancels an unfinished keyboard resize. Textarea arrows continue editing text.
+- The minimum manual size is 160×160. Width and height are independent; fonts do not scale and the paper may extend
+  past its group region. A release saves one local layout Undo step. Escape during a drag cancels it.
+- The reset button in the title band, or "Restore default desktop size" in a note's settings, restores this device's
+  new-note dimensions for just that paper, keeping its position. Layout Undo restores its previous size.
+- Dimensions belong to this device, survive restart and are included in backups. Saving, cancelling or ending text
+  editing keeps the committed dimensions. The main-window board and phone layout keep their own presentation.
 
 ## Shortcuts
 
@@ -336,7 +352,7 @@ groups:
   - Phones have the same setting; on iOS the Share Extension sheet follows it too.
   - The choice belongs to this device: it is not part of a backup or of Google data.
 - Desktop notes (desktop apps and the browser preview; phones have no Desktop notes or Shortcuts page): "Show notes
-  on the desktop", "Show completed notes", "Hold Ctrl to drag or double-click a note" (desktop apps only), "New desktop note size" and
+  on the desktop", "Show completed notes", "Hold Ctrl to move, resize or edit a note" (desktop apps only), "New desktop note size" and
   "Group regions". On GNOME Wayland the page also has "Show
   desktop notes through XWayland" (see [Linux](#linux)). "Reset desktop layout" is last.
 - Shortcuts: see [Shortcuts](#shortcuts).

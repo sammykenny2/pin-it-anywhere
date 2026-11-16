@@ -10,7 +10,8 @@ import { groupHighlighted, mainGroup, mainView } from '../layout/store.js';
 import { reorderSlots } from '../layout/order.js';
 import { settleGroupColors } from '../layout/colors.js';
 import { groupOpacity, MIN_OPACITY } from '../layout/opacity.js';
-import { newPaperSize } from '../layout/paper-size.js';
+import { newPaperSize, paperDimensions } from '../layout/paper-size.js';
+import { installKeyboardSizing, updateSizingControls } from '../desktop/sizing.js';
 import { InteractionController, cardPolicy, quickMoveKey, sceneOrder } from '../interaction/controller.js';
 import { IndexedDbStorage, acquireProfile } from '../storage/indexed-db.js';
 import { IndexedDbRecordStore } from '../storage/records-indexed-db.js';
@@ -1914,6 +1915,7 @@ function renderCounts() {
 }
 
 function renderStage(cards) {
+  const sizingFocus = document.activeElement?.closest('.resize-se')?.closest('[data-card-id]')?.dataset.cardId;
   for (const close of stageAttachmentCleanup.splice(0)) close();
   stageFitter.clear(); const stage = $('#stage'); stage.replaceChildren(); groupLabels = [];
   if (desktopInfo) { const area = screenArea(); stage.style.transform = `translate(${-area.x}px, ${-area.y}px)`; }
@@ -1952,8 +1954,11 @@ function renderStage(cards) {
     const strip = attachmentStrip(card.content.attachments || [], stageAttachmentCleanup, stageFitter); if (strip) paper.append(strip);
     // Adjust mode only arranges (SPEC-003, 2026-10-24): an adjusted paper has no Edit or "⋯" and opens no editor.
     if (policy.draggable) { paper.tabIndex = 0; paper.setAttribute('aria-label', paperLabel(card)); }
+    updateSizingControls(paper, policy.draggable);
     stage.append(paper);
   }
+  if (sizingFocus) [...stage.querySelectorAll('[data-card-id]')].find(paper => paper.dataset.cardId === sizingFocus)
+    ?.querySelector('.resize-se')?.focus({ preventScroll: true });
 }
 
 // The regions of this computer and the groups off its desktop. A region of a collection that is not open stays reserved.
@@ -2528,6 +2533,11 @@ function cardDetails(card) {
   // Which layer a paper sits on belongs to its group and changes only with the group's shortcut on the desktop.
   // Phones show no desktop papers, so the display option they cannot show stays unchanged.
   dialog.append(groupLabel, ...handheld ? [] : [visibility]);
+  if (!handheld && workspace.layout.state.placements[card.id]) dialog.append(button(t('desktop.resize.reset'), async () => {
+    const layout = workspace.layout.state, origin = layout.placements[card.id];
+    await workspace.layout.resize(card.id, { ...origin, ...paperDimensions(layout) }, origin);
+    render(); status(t('desktop.resize.restored'));
+  }));
   const actions = element('div', undefined, 'dialog-actions');
   // A completed note has Archive on its paper; one still to do does not, so here is where it goes.
   if (!card.completed) actions.append(button(t('app.card.archive'), async () => { await changeCard(card.id, { archived: true }); dialog.close(); }, 'leading'));
@@ -3572,10 +3582,11 @@ function bindEvents() {
   const stageRun = action => (stageQueue = stageQueue.then(() => run(action)));
   stage.onpointerdown = event => {
     const paper = event.target.closest('.card.operable');
-    if (!paper || event.button !== 0 || event.target.closest('button,a,input,select,textarea')) return;
+    const edge = event.target.closest('[data-resize-edge]')?.dataset.resizeEdge;
+    if (!paper || event.button !== 0 || !edge && event.target.closest('button,a,input,select,textarea')) return;
     let started;
     try { started = controller.pointerDown(paper.dataset.cardId, point(event), { pointerId: event.pointerId,
-      handle: Boolean(event.target.closest('.card-summary')) }); }
+      handle: Boolean(event.target.closest('.card-summary')), edge: edge || null }); }
     catch (error) { if (error.code === 'busy') return; throw error; }
     if (started) { paper.setPointerCapture(event.pointerId); event.preventDefault(); }
   };
@@ -3584,13 +3595,24 @@ function bindEvents() {
     try {
       const id = event.target.closest('.card')?.dataset.cardId;
       const result = await controller.pointerUp(point(event), { pointerId: event.pointerId, shiftKey: event.shiftKey, labels: groupLabels });
-      if (result.kind === 'click' && id) { await controller.select(id, { gesture: true }); renderSelection(); }
+      if (result.kind === 'click' && id && !event.target.closest('[data-resize-edge]')) { await controller.select(id, { gesture: true }); renderSelection(); }
       else if (result.kind !== 'ignored') { if (controller.state.activeGroupId) activeGroupId = controller.state.activeGroupId; render(); }
       if (result.kind === 'transferred') status(t('app.status.movedToGroup'));
     } catch (error) { render(); throw error; }
   });
   stage.onpointercancel = () => { controller.cancelDrag(); render(); };
   stage.addEventListener('lostpointercapture', () => { if (controller.cancelDrag()) render(); });
+  const keyboardPointer = 2147483647;
+  installKeyboardSizing(stage, {
+    begin: async (cardId, value) => {
+      controller.pointerDown(cardId, point(value), { pointerId: keyboardPointer, edge: 'se', threshold: 1 });
+    },
+    move: async value => { dragPaint(controller.pointerMove(point(value), { pointerId: keyboardPointer })); },
+    end: value => stageRun(async () => { await controller.pointerUp(point(value), { pointerId: keyboardPointer }); render(); }),
+    cancel: async () => { controller.cancelDrag(); render(); },
+    reset: cardId => stageRun(async () => { await controller.resetSize(cardId); render(); }),
+    report: error => status(error.message, true),
+  });
   document.addEventListener('keydown', event => {
     if (event.isComposing || composing || event.defaultPrevented || document.querySelector('dialog[open]')) return;
     if (event.key === 'Escape' && document.body.classList.contains('drawer-open')) { event.preventDefault(); setDrawer(false); return; }

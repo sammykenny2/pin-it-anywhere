@@ -140,6 +140,34 @@ enum PinItAnywhereKeychain {
         let hit = "document.elementFromPoint(\(rear.rect.midX - floating.viewport.minX),\(rear.rect.minY + 16 - floating.viewport.minY))?.closest('.card')?.dataset.cardId"
         let painted = try await floating.web.evaluateJavaScript(hit) as? String
         guard painted == front.id else { throw NSError(domain: "TrayBridgeProbe", code: 7, userInfo: [NSLocalizedDescriptionKey: "WKWebView paint/hit order differs from the saved order"]) }
+        // A manual size uses the real native allowlist, shared controller, encrypted layout and WKWebView frame.
+        let sizeBefore = floating.downloading!.cards.first(where: { $0.id == front.id })!.rect
+        let sizing: [String: Any] = ["gestureId": PinItAnywhereProtocol.uuid(), "pointerId": 2]
+        let start: [String: Any] = ["x": sizeBefore.maxX - 1, "y": sizeBefore.maxY - 1]
+        let end: [String: Any] = ["x": sizeBefore.maxX + 39, "y": sizeBefore.maxY + 29]
+        try await command("pointer.down", sizing.merging(["cardId": front.id, "point": start, "edge": "se"]) { _, new in new })
+        try await command("pointer.move", sizing.merging(["point": end]) { _, new in new })
+        try await command("pointer.up", sizing.merging(["point": end]) { _, new in new })
+        try await until("A manual size must reach the native scene") {
+            floating.downloading?.cards.first(where: { $0.id == front.id })?.rect.width == sizeBefore.width + 40
+                && floating.downloading?.cards.first(where: { $0.id == front.id })?.rect.height == sizeBefore.height + 30
+                && floating.applied == floating.downloading?.sequence
+        }
+        let grip = try await floating.web.evaluateJavaScript("document.querySelector('.card[data-card-id=\"\(front.id)\"] .resize-se')?.getAttribute('aria-label')") as? String
+        guard let grip, !grip.isEmpty else { throw NSError(domain: "TrayBridgeProbe", code: 9, userInfo: [NSLocalizedDescriptionKey: "Native scene must draw the named sizing grip"]) }
+        try await command("card.resetSize", ["cardId": front.id])
+        try await until("Single-paper reset must use this device's default size") {
+            floating.downloading?.cards.first(where: { $0.id == front.id })?.rect.size == NSSize(width: 240, height: 240)
+        }
+        try await command("layout.arrange", ["kind": "undo"])
+        try await until("Reset Undo must restore custom dimensions") {
+            floating.downloading?.cards.first(where: { $0.id == front.id })?.rect.width == sizeBefore.width + 40
+        }
+        try await command("layout.arrange", ["kind": "undo"])
+        try await until("Resize Undo must restore the complete prior rectangle") {
+            floating.downloading?.cards.first(where: { $0.id == front.id })?.rect == sizeBefore
+        }
+        print("PASS macOS sizing: native command admission, WKWebView grip, encrypted SQLite, reset and Undo")
         try await command("interaction.done", [:])
         try await until("Done must preserve the front paper on the resident Wallpaper layer") {
             desktop.adjusting == false && wallpaper.downloading?.cards.last?.id == front.id && wallpaper.applied == wallpaper.downloading?.sequence

@@ -1,6 +1,6 @@
 # Document Index
 
-Updated: 2026-11-14. Read the latest specifications first; research, working defaults, completed implementation and
+Updated: 2026-11-16. Read the latest specifications first; research, working defaults, completed implementation and
 passed real-world tests are kept apart.
 
 Alpha preparation protects installed user/tester data and supported backups. Schema increases are allowed when
@@ -12,6 +12,7 @@ See [SPEC-007](specs/007-schema-evolution-and-migrations.md) and
 
 | Document | Authority and purpose |
 |---|---|
+| [ADR-074](decisions/074-manual-desktop-note-sizing.md)/[SPEC-015](specs/015-manual-desktop-note-sizing.md)/[PLAN-016](plans/016-manual-desktop-note-sizing.md) | Approved manual desktop sizing: adjust, in-place editing, opt-in quick edge drag, keyboard sizing and single-paper reset; unchanged persisted geometry/history format |
 | [ADR-073](decisions/073-alpha-data-compatibility-and-migrations.md)/[SPEC-007](specs/007-schema-evolution-and-migrations.md)/[PLAN-007](plans/007-schema-evolution-and-migrations.md) | Accepted alpha data policy: schema evolution is allowed, with installed-data/backup compatibility and recoverable migrations where needed |
 | [ADR-072](decisions/072-persistent-desktop-note-stacking.md)/[SPEC-014](specs/014-desktop-note-stacking.md)/[PLAN-015](plans/015-desktop-note-stacking.md) | Accepted persistent desktop stacking: note/group raises, formation/reset, conditional Undo and recoverable layout batches; shared implementation complete, native acceptance boundaries in PLAN-015 |
 | [ADR-071](decisions/071-complete-product-name-cutover.md) | Complete source/project/asset/configuration/updater naming; earlier preview installations need explicit data, signing and manual-install acceptance |

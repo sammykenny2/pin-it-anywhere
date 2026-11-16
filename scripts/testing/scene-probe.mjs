@@ -212,7 +212,8 @@ try {
   const [quickKey, quickModifier] = process.platform === 'darwin' ? ['meta', 'Meta'] : ['ctrl', 'Control'];
   const drag = async (selector, modifier) => {
     // Along the first line of text, where a plain drag selects.
-    const box = await page.locator(selector).first().boundingBox(); const x = box.x + 4; const y = box.y + 8;
+    const box = await page.locator(selector).first().boundingBox();
+    const x = box.x + (selector.endsWith('.card-summary') ? 18 : 4); const y = box.y + 8;
     if (modifier) await page.keyboard.down(modifier);
     await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 146, y, { steps: 10 }); await page.mouse.up();
     if (modifier) await page.keyboard.up(modifier);
@@ -288,7 +289,8 @@ try {
     [true, true, true, true], 'the editor buttons show icons instead of text');
   const downsBefore = (await quickState()).downs.length;
   await drag('.card[data-card-id="c2"] .card-summary', quickModifier);
-  assert.equal((await quickState()).downs.length, downsBefore, 'the paper being edited does not move');
+  assert.equal((await quickState()).downs.length, downsBefore + 1, 'the edited paper moves from its title band');
+  assert.equal((await quickState()).downs.at(-1).quick, undefined, 'editing uses its own title handle without the quick-move gate');
   // The web view's own menu stays away from the paper; the text being edited keeps its menu.
   const menuAllowed = selector => page.locator(selector).evaluate(node => node.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })));
   assert.equal(await menuAllowed('.card[data-card-id="c1"] .card-summary'), false, 'a paper shows no web view menu');
@@ -297,7 +299,8 @@ try {
   const sent = method => page.evaluate(wanted => window.probeEditor.filter(entry => entry.method === wanted).length, method);
   // Move to Trash is apart from the answer to the edit, and nothing to lose means one press.
   const [trashBox, fullBox] = await Promise.all([editorAction(t('desktop.editor.trash')).boundingBox(), editorAction(t('desktop.editor.full')).boundingBox()]);
-  assert.ok(fullBox.x - (trashBox.x + trashBox.width) > 20, 'Move to Trash stands apart from the other actions');
+  assert.ok(fullBox.x - (trashBox.x + trashBox.width) > 20,
+    `Move to Trash stands apart from the other actions: ${JSON.stringify({ trashBox, fullBox })}`);
   await page.locator('.card[data-card-id="c2"]').screenshot({ path: 'build/scene-editor.png' });
   await editorAction(t('common.cancel')).dblclick();
   await page.waitForFunction(() => window.probeEditor.some(entry => entry.method === 'editor.cancel'));
