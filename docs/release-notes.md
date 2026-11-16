@@ -9,6 +9,19 @@ release per platform: `windows-v<version>`, `linux-v<version>`, `macos-v<version
 omitted for an explicitly requested desktop-only preview, even though all version records advance together.
 `Summary` is one plain line for the in-app update prompt.
 
+## 0.8.1
+
+Platforms: Windows, Linux, macOS.
+
+Summary: Resize desktop notes while editing or adjusting, or hold Command/Ctrl and drag an edge. Keyboard sizing, single-note reset and Undo keep the layout separate from your text.
+
+- Manual desktop sizing: drag any edge or corner while editing a note in place or adjusting a group/all notes. With quick operations enabled, hold Command on macOS or Ctrl on Windows/Linux before dragging an edge of a resting Desktop- or Top-layer note. Width and height are independent, with a 160 x 160 minimum; fonts and group membership stay unchanged. Entering or leaving an editor never automatically changes the size.
+- Keyboard and cancellation: focus the bottom-right grip and press Enter or Space to start; arrows adjust by one logical unit, or ten with Shift. Enter keeps the size, Escape cancels, and leaving the grip cancels an unfinished keyboard preview. Escape during a pointer resize cancels just the size preview, preserving the in-place editor and its text.
+- Single-note reset and Undo: the title-band reset button and Restore default desktop size in note settings restore this device's chosen new-note dimensions for that paper only, retaining its position. Completed sizing/reset operations each use one local layout Undo step. Failed saves restore the visible acknowledged rectangle and history.
+- Content and compatibility: dimensions remain device-local and survive restart and supported backups. Resizing does not save, discard or sync note content, and the editor's Save/Cancel actions keep committed dimensions. Existing V1 rectangles and move-history records carry sizing without new fields, format changes or a data reset. Current application identities and preview signing configuration remain unchanged; install over a current-identity preview to retain local data.
+- Verification: shared model, persistence-failure, combined-profile and V1 backup round-trip tests cover the geometry. Chromium/WebKit scene and IndexedDB UI probes cover handles, keyboard sizing, reset, cancellation, caret preservation and visual rollback; a native macOS AppKit/WKWebView/SQLite probe covers sizing/reset/Undo through the real bridge. Real IME input, physical pointer/cursor behavior, mixed-DPI/multiple displays, installed-platform updates and independent review remain separate acceptance checks.
+- Distribution scope: Windows, macOS and Linux only. Shared Apple/Android version records advance to 0.8.1 with build number 801; no Android APK, iOS download or store/beta submission is included. Earlier identities and incompatible historical formats retain their explicit recovery requirements; this update does not require uninstalling or resetting a current-identity installation.
+
 ## 0.8.0
 
 Platforms: Windows, Linux, macOS, Android.
