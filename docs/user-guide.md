@@ -602,6 +602,13 @@ Recent restore receipts are under the collapsed "Recent restores" entry.
   ([ADR-040](decisions/040-gnome-wayland-xwayland-choice.md)), or start it directly with `GDK_BACKEND=x11 pin-it-anywhere`.
   Through XWayland, groups stay resident only on the Wallpaper layer
   ([ADR-039](decisions/039-gnome-desktop-icons-and-x11-scene-size.md)).
+- Don't use XWayland in a GNOME Remote Login session (RDP through gnome-remote-desktop). On Ubuntu 24.04 (GNOME
+  Shell 46) that session runs without a GPU, and GNOME Shell crashed, ending the session, as soon as any XWayland
+  window appeared (seen with other apps on an NVIDIA DGX Spark; not tried with Pin It Anywhere itself). There, answer
+  "Keep the current mode" on first start. If you already chose XWayland, first turn off "Start Pin It Anywhere when
+  you sign in to the computer", or it starts through XWayland as soon as you sign in remotely; then start it in that
+  session with `GDK_BACKEND=wayland pin-it-anywhere`, which takes precedence over the setting. A session on a local
+  monitor is not affected.
 - On layer-shell desktops such as Raspberry Pi OS (labwc), the resident layers are not limited by the overlay (the
   default pcmanfm desktop has no Wallpaper layer). Adjust mode likewise covers the whole screen with the overlay and
   hides the main window.

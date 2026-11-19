@@ -385,6 +385,12 @@
   之後可在「設定 → 桌面便箋」的「以 XWayland 顯示桌面便箋」切換（[ADR-040](decisions/040-gnome-wayland-xwayland-choice.md)），
   也可直接以 `GDK_BACKEND=x11 pin-it-anywhere` 啟動。
   經 XWayland 時群組只常駐桌布層（[ADR-039](decisions/039-gnome-desktop-icons-and-x11-scene-size.md)）。
+- 在 GNOME 遠端登入（Remote Login，經 gnome-remote-desktop 的 RDP）的工作階段裡不要用 XWayland。
+  Ubuntu 24.04（GNOME Shell 46）的這種工作階段沒有 GPU，只要出現任何 XWayland 視窗，GNOME Shell 就會崩潰、
+  整個工作階段隨之結束（在 NVIDIA DGX Spark 上以其他程式觀察到；尚未用貓亂貼本身測試）。
+  在這種工作階段首次啟動時請選「維持目前方式」；如果已經選了 XWayland，先關掉「登入電腦時啟動貓亂貼」，
+  否則遠端一登入它就會經 XWayland 啟動；之後在該工作階段以 `GDK_BACKEND=wayland pin-it-anywhere` 啟動，
+  這個環境變數優先於設定。接本機螢幕的工作階段不受影響。
 - Raspberry Pi OS（labwc）等 layer-shell 桌面的常駐層不受遮罩限制（預設 pcmanfm 桌面沒有桌布層），
   調整模式同樣以遮罩覆蓋整個螢幕並隱藏主視窗。
 - sway、wayfire 這類沒有全域快捷鍵 portal 的 Wayland 桌面，貓亂貼無法自行註冊按鍵。請在桌面環境自己的設定裡，
