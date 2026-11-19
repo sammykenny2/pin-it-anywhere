@@ -5,6 +5,10 @@
 Accepted, 2026-10-13. The maintainer asked for a setting and a question at first launch; this resolves the decision that
 [ADR-039](039-gnome-desktop-icons-and-x11-scene-size.md) deferred.
 
+Since the 2026-11-14 product rename, the names below are historical: the marker variable is
+`PIN_IT_ANYWHERE_GDK_BACKEND` (not `WORK_FLEET_GDK_BACKEND`), the default data directory is
+`$XDG_DATA_HOME/PinItAnywhere` (not `WorkFleet`), and it is Pin It Anywhere that sets it.
+
 ## Context
 
 GNOME Wayland has no layer-shell, so a native Wayland start has no desktop notes; the wallpaper layer and the adjust
